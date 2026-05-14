@@ -1,0 +1,172 @@
+{
+  "vcon": "0.4.0",
+  "uuid": "0193f0a0-1b2c-7e89-9a01-2b3c4d5e6f70",
+  "created_at": "2026-05-14T15:20:00Z",
+  "subject": "Customer refactor request — handled by Claude Opus 4.6 via Claude Code",
+  "extensions": ["agent_session", "lawful_basis"],
+  "must_support": ["agent_session"],
+
+  "parties": [
+    {
+      "name": "Alex Customer",
+      "mailto": "alex@example.com",
+      "role": "customer",
+      "validation": "email"
+    },
+    {
+      "name": "Claude Opus 4.6",
+      "role": "agent",
+      "validation": "system",
+      "meta": {
+        "agent_session": {
+          "model_id": "claude-opus-4-6",
+          "provider": "anthropic",
+          "recording_agent": "claude-code/1.2.0",
+          "environment": {
+            "cwd": "/Users/alex/projects/billing",
+            "vcs_branch": "main",
+            "vcs_commit": "abc123def4567890"
+          }
+        }
+      }
+    }
+  ],
+
+  "dialog": [
+    {
+      "type": "text",
+      "start": "2026-05-14T15:20:05Z",
+      "parties": [0],
+      "mimetype": "text/plain",
+      "body": "Hey — my invoice script is throwing a KeyError on 'tax_rate' when the customer is tax-exempt. Can you fix it?"
+    },
+    {
+      "type": "text",
+      "start": "2026-05-14T15:20:08Z",
+      "parties": [1],
+      "mimetype": "text/markdown",
+      "body": "Looking at `src/invoice.py` now — I'll read the function that builds the line items and find the KeyError."
+    },
+    {
+      "type": "text",
+      "start": "2026-05-14T15:20:42Z",
+      "parties": [1],
+      "mimetype": "text/markdown",
+      "body": "Found it. `build_line_item` assumes every customer record has `tax_rate`. I'll add a default of 0.0 for tax-exempt customers and add a test. Editing now."
+    },
+    {
+      "type": "text",
+      "start": "2026-05-14T15:21:30Z",
+      "parties": [1],
+      "mimetype": "text/markdown",
+      "body": "Done. Edited `src/invoice.py` lines 47–52 to use `.get('tax_rate', 0.0)`, added a test in `tests/test_invoice.py`, and committed as `def4567890abc123`. The test passes locally. Want me to open a PR?"
+    },
+    {
+      "type": "text",
+      "start": "2026-05-14T15:22:10Z",
+      "parties": [0],
+      "mimetype": "text/plain",
+      "body": "Yes please, open the PR."
+    }
+  ],
+
+  "analysis": [
+    {
+      "type": "agent_trace",
+      "dialog": [0, 1, 2, 3, 4],
+      "vendor": "anthropic",
+      "product": "claude-opus-4-6",
+      "schema": "https://datatracker.ietf.org/doc/draft-birkholz-verifiable-agent-conversations/",
+      "encoding": "json",
+      "body": "{\"version\":\"1.0\",\"id\":\"sess-7f1c2a-0001\",\"session-trace\":{\"agent-meta\":{\"model-id\":\"claude-opus-4-6\",\"provider\":\"anthropic\"},\"recording-agent\":\"claude-code/1.2.0\",\"environment\":{\"cwd\":\"/Users/alex/projects/billing\",\"vcs-branch\":\"main\",\"vcs-commit\":\"abc123def4567890\"},\"entries\":[{\"type\":\"user\",\"id\":\"e1\",\"timestamp\":\"2026-05-14T15:20:05Z\",\"content\":\"Hey — my invoice script is throwing a KeyError on 'tax_rate' when the customer is tax-exempt. Can you fix it?\"},{\"type\":\"assistant\",\"id\":\"e2\",\"parent-id\":\"e1\",\"timestamp\":\"2026-05-14T15:20:08Z\",\"content\":\"Looking at `src/invoice.py` now — I'll read the function that builds the line items and find the KeyError.\"},{\"type\":\"reasoning\",\"id\":\"e3\",\"parent-id\":\"e2\",\"timestamp\":\"2026-05-14T15:20:09Z\",\"content\":\"User reports KeyError on 'tax_rate'. Likely a dict access in invoice builder. Need to grep for tax_rate and inspect the access pattern.\"},{\"type\":\"tool-call\",\"id\":\"e4\",\"parent-id\":\"e2\",\"timestamp\":\"2026-05-14T15:20:11Z\",\"name\":\"Grep\",\"arguments\":{\"pattern\":\"tax_rate\",\"path\":\"src/\"}},{\"type\":\"tool-result\",\"id\":\"e5\",\"parent-id\":\"e4\",\"timestamp\":\"2026-05-14T15:20:13Z\",\"status\":\"ok\",\"output\":\"src/invoice.py:49:    rate = customer['tax_rate']\\nsrc/invoice.py:88:    total += line.subtotal * customer['tax_rate']\"},{\"type\":\"tool-call\",\"id\":\"e6\",\"parent-id\":\"e2\",\"timestamp\":\"2026-05-14T15:20:18Z\",\"name\":\"Read\",\"arguments\":{\"file_path\":\"/Users/alex/projects/billing/src/invoice.py\",\"offset\":40,\"limit\":20}},{\"type\":\"tool-result\",\"id\":\"e7\",\"parent-id\":\"e6\",\"timestamp\":\"2026-05-14T15:20:20Z\",\"status\":\"ok\",\"output\":\"def build_line_item(customer, item):\\n    subtotal = item.price * item.qty\\n    rate = customer['tax_rate']\\n    tax = subtotal * rate\\n    return LineItem(subtotal=subtotal, tax=tax)\"},{\"type\":\"reasoning\",\"id\":\"e8\",\"parent-id\":\"e7\",\"timestamp\":\"2026-05-14T15:20:25Z\",\"content\":\"Confirmed — direct dict access. Tax-exempt customers don't have the key. Fix: use .get('tax_rate', 0.0). Add a unit test covering the tax-exempt branch.\"},{\"type\":\"assistant\",\"id\":\"e9\",\"parent-id\":\"e8\",\"timestamp\":\"2026-05-14T15:20:42Z\",\"content\":\"Found it. `build_line_item` assumes every customer record has `tax_rate`. I'll add a default of 0.0 for tax-exempt customers and add a test. Editing now.\"},{\"type\":\"tool-call\",\"id\":\"e10\",\"parent-id\":\"e9\",\"timestamp\":\"2026-05-14T15:20:50Z\",\"name\":\"Edit\",\"arguments\":{\"file_path\":\"/Users/alex/projects/billing/src/invoice.py\",\"old_string\":\"    rate = customer['tax_rate']\",\"new_string\":\"    rate = customer.get('tax_rate', 0.0)\"}},{\"type\":\"tool-result\",\"id\":\"e11\",\"parent-id\":\"e10\",\"timestamp\":\"2026-05-14T15:20:51Z\",\"status\":\"ok\",\"output\":\"Edited src/invoice.py: 1 replacement\"},{\"type\":\"tool-call\",\"id\":\"e12\",\"parent-id\":\"e9\",\"timestamp\":\"2026-05-14T15:20:58Z\",\"name\":\"Bash\",\"arguments\":{\"command\":\"cd /Users/alex/projects/billing && pytest tests/test_invoice.py -q\"}},{\"type\":\"tool-result\",\"id\":\"e13\",\"parent-id\":\"e12\",\"timestamp\":\"2026-05-14T15:21:05Z\",\"status\":\"ok\",\"output\":\"7 passed in 0.41s\"},{\"type\":\"tool-call\",\"id\":\"e14\",\"parent-id\":\"e9\",\"timestamp\":\"2026-05-14T15:21:10Z\",\"name\":\"Bash\",\"arguments\":{\"command\":\"cd /Users/alex/projects/billing && git commit -am 'fix(invoice): default tax_rate to 0.0 for tax-exempt customers'\"}},{\"type\":\"tool-result\",\"id\":\"e15\",\"parent-id\":\"e14\",\"timestamp\":\"2026-05-14T15:21:12Z\",\"status\":\"ok\",\"output\":\"[main def4567890abc123] fix(invoice): default tax_rate to 0.0\\n 2 files changed, 8 insertions(+), 1 deletion(-)\"},{\"type\":\"assistant\",\"id\":\"e16\",\"parent-id\":\"e9\",\"timestamp\":\"2026-05-14T15:21:30Z\",\"content\":\"Done. Edited `src/invoice.py` lines 47–52 to use `.get('tax_rate', 0.0)`, added a test in `tests/test_invoice.py`, and committed as `def4567890abc123`. The test passes locally. Want me to open a PR?\"},{\"type\":\"user\",\"id\":\"e17\",\"parent-id\":\"e16\",\"timestamp\":\"2026-05-14T15:22:10Z\",\"content\":\"Yes please, open the PR.\"}]}}"
+    }
+  ],
+
+  "attachments": [
+    {
+      "purpose": "agent_file_change",
+      "party": 1,
+      "dialog": 3,
+      "encoding": "json",
+      "body": {
+        "path": "src/invoice.py",
+        "contributor": "agent",
+        "line_range": [47, 52],
+        "operation": "edit",
+        "commit": "def4567890abc123",
+        "content_hash": "sha512-3pX2qFLZ9V_dGqsm9k1yQH3Bqv2gW6T7nKxR8tYpA4_l-mEcZ5UJfV0nXdRr7sJ9oqL2H1bX8gC3eW4PzM7vYg"
+      }
+    },
+    {
+      "purpose": "agent_file_change",
+      "party": 1,
+      "dialog": 3,
+      "encoding": "json",
+      "body": {
+        "path": "tests/test_invoice.py",
+        "contributor": "agent",
+        "line_range": [120, 138],
+        "operation": "add",
+        "commit": "def4567890abc123",
+        "content_hash": "sha512-7tA1mPzV3oW8jC0kRpL9eN4xQ2bU5hYsK6Mn-vJfHcXrG_T8oZyD0sFw1qE3pV4uB5nC9aLkW6Pz2X7vQrYmHg"
+      }
+    },
+    {
+      "purpose": "agent_environment",
+      "party": 1,
+      "dialog": 1,
+      "encoding": "json",
+      "body": {
+        "cwd": "/Users/alex/projects/billing",
+        "vcs_branch": "main",
+        "vcs_commit_before": "abc123def4567890",
+        "vcs_commit_after": "def4567890abc123",
+        "python_version": "3.12.1"
+      }
+    },
+    {
+      "type": "lawful_basis",
+      "start": "2026-05-14T15:20:00Z",
+      "party": 0,
+      "dialog": 0,
+      "encoding": "json",
+      "body": {
+        "lawful_basis": "contract",
+        "expiration": null,
+        "purpose_grants": [
+          {
+            "purpose": "recording",
+            "granted": true,
+            "granted_at": "2026-05-14T15:20:00Z"
+          },
+          {
+            "purpose": "agent_session_recording",
+            "granted": true,
+            "granted_at": "2026-05-14T15:20:00Z"
+          },
+          {
+            "purpose": "agent_session_analysis",
+            "granted": true,
+            "granted_at": "2026-05-14T15:20:00Z",
+            "conditions": ["internal use only — no redistribution"]
+          },
+          {
+            "purpose": "agent_session_redistribution",
+            "granted": false,
+            "granted_at": "2026-05-14T15:20:00Z"
+          }
+        ],
+        "proof_mechanisms": [
+          {
+            "proof_type": "signed_document",
+            "timestamp": "2026-04-01T00:00:00Z",
+            "proof_data": {
+              "document_id": "support-tos-v3",
+              "url": "https://example.com/tos/support-v3"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+# IETF Draft generated files
+*.txt
+*.html
+*.pdf
+*.xml
+
+# i-d-template toolchain (auto-cloned)
+lib/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
