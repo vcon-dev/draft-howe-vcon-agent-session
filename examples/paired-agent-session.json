@@ -4,7 +4,7 @@
   "created_at": "2026-05-14T15:20:00Z",
   "subject": "Customer refactor request — handled by Claude Opus 4.6 via Claude Code",
   "extensions": ["agent_session", "lawful_basis"],
-  "must_support": ["agent_session"],
+  "critical": ["agent_session"],
 
   "parties": [
     {

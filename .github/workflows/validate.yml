@@ -1,0 +1,124 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Daily — catches upstream VAC CDDL drift even without local commits.
+    - cron: "17 6 * * *"
+
+jobs:
+  examples:
+    name: vCon examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install JSON Schema validator
+        run: pip install --quiet check-jsonschema
+
+      - name: Fetch vCon core JSON Schema
+        run: |
+          mkdir -p .ci
+          curl -fsSL \
+            https://raw.githubusercontent.com/vcon-dev/vcon-mcp-adapters/main/schemas/vcon-attachment-v1.schema.json \
+            -o .ci/vcon-core.schema.json
+
+      - name: Validate every example is well-formed JSON
+        run: |
+          shopt -s nullglob
+          for f in examples/*.json; do
+            echo "::group::python -m json.tool $f"
+            python -m json.tool "$f" > /dev/null
+            echo "::endgroup::"
+          done
+
+      - name: Validate examples against vCon core schema
+        run: |
+          shopt -s nullglob
+          files=(examples/*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No examples to validate."
+            exit 0
+          fi
+          check-jsonschema \
+            --schemafile .ci/vcon-core.schema.json \
+            "${files[@]}"
+
+  vac-cddl:
+    name: VAC CDDL contract (allowed to fail)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install cddl gem
+        run: gem install cddl
+
+      - name: Locate upstream VAC CDDL
+        id: vac
+        run: |
+          # Henk's draft repo. Path will move once the CDDL lands;
+          # update VAC_CDDL_URL when he publishes.
+          : "${VAC_CDDL_URL:=https://raw.githubusercontent.com/henkbirkholz/draft-birkholz-verifiable-agent-conversations/main/cddl/vac.cddl}"
+          echo "url=$VAC_CDDL_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch VAC CDDL
+        run: |
+          mkdir -p .ci
+          if ! curl -fsSL "${{ steps.vac.outputs.url }}" -o .ci/vac.cddl; then
+            echo "::warning::VAC CDDL not yet published at ${{ steps.vac.outputs.url }} — skipping."
+            echo "::warning::Update VAC_CDDL_URL once the upstream path is known."
+            exit 1
+          fi
+          echo "Fetched $(wc -c < .ci/vac.cddl) bytes of CDDL."
+
+      - name: Extract analysis.body from each example and validate against VAC CDDL
+        run: |
+          shopt -s nullglob
+          mkdir -p .ci/bodies
+          for f in examples/*.json; do
+            name=$(basename "$f" .json)
+            python3 - "$f" ".ci/bodies/${name}" <<'PY'
+          import json, sys, pathlib
+          src, out_prefix = sys.argv[1], sys.argv[2]
+          v = json.loads(pathlib.Path(src).read_text())
+          for idx, a in enumerate(v.get("analysis") or []):
+              if a.get("type") != "agent_trace":
+                  continue
+              body = a.get("body")
+              if isinstance(body, str):
+                  try:
+                      body = json.loads(body)
+                  except Exception as e:
+                      print(f"::warning file={src}::analysis[{idx}].body is not JSON: {e}")
+                      continue
+              pathlib.Path(f"{out_prefix}.analysis-{idx}.json").write_text(
+                  json.dumps(body, indent=2)
+              )
+          PY
+          done
+          ls -la .ci/bodies || true
+          shopt -s nullglob
+          bodies=(.ci/bodies/*.json)
+          if [ ${#bodies[@]} -eq 0 ]; then
+            echo "No agent_trace analysis bodies found in examples — nothing to validate."
+            exit 0
+          fi
+          fail=0
+          for b in "${bodies[@]}"; do
+            echo "::group::cddl .ci/vac.cddl validate $b"
+            cddl .ci/vac.cddl validate "$b" || fail=1
+            echo "::endgroup::"
+          done
+          exit $fail
